@@ -1,4 +1,4 @@
-import java.lang.StringBuilder
+import kotlin.text.StringBuilder
 
 fun main() {
     fun parseCargoLine(line: String): List<Char?> = buildList {
@@ -54,25 +54,54 @@ fun main() {
         return tail
     }
 
-    fun part1(input: List<String>): String {
+    fun parseInput(input: List<String>): Pair<List<StringBuilder>, List<MoveCommand>> {
         val separatorPosition = input.indexOfFirst { it.isBlank() }
 
-        val setup = parseCargoSetup(input.take(separatorPosition))
+        val crates = parseCargoSetup(input.take(separatorPosition))
         val commands = input.drop(separatorPosition + 1).map { parseCommand(it) }
 
-        for (cmd in commands) {
-            val from = setup[cmd.from]
-            val to = setup[cmd.to]
-            to.append(from.removeLast(cmd.count).reversed())
-        }
+        return crates to commands
+    }
 
-        return setup.joinToString("") { it.last().toString() }
+    fun crateMover9000(crates: List<StringBuilder>, command: MoveCommand) {
+        val from = crates[command.from]
+        val to = crates[command.to]
+        val toMove = from.removeLast(command.count)
+        to.append(toMove.reversed())
+    }
+
+    fun topLevelCrates(crates: List<StringBuilder>): String =
+        crates.joinToString("") { it.last().toString() }
+
+    fun part1(input: List<String>): String {
+        val (crates, commands) = parseInput(input)
+
+        commands.forEach { crateMover9000(crates, it) }
+
+        return topLevelCrates(crates)
+    }
+
+    fun crateMover9001(crates: List<StringBuilder>, command: MoveCommand) {
+        val from = crates[command.from]
+        val to = crates[command.to]
+        val toMove = from.removeLast(command.count)
+        to.append(toMove)
+    }
+    
+    fun part2(input: List<String>): String {
+        val (crates, commands) = parseInput(input)
+
+        commands.forEach { crateMover9001(crates, it) }
+
+        return topLevelCrates(crates)
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day05_test")
     check(part1(testInput) == "CMZ")
+    check(part2(testInput) == "MCD")
 
     val input = readInput("Day05")
     println(part1(input))
+    println(part2(input))
 }
