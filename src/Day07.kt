@@ -106,10 +106,32 @@ fun main() {
         return countDirectorySizes(root).filter { size -> size <= 100_000 }.sum()
     }
 
+    fun part2(input: List<String>): Int {
+        val commandsWithResults = parseCommands(input)
+
+        val root = buildFileTree(commandsWithResults)
+
+        val totalDiskSpace = 70_000_000
+        val targetFreeSpace = 30_000_000
+
+        val occupiedSpace = countDirectorySizes(root).last()
+        val freeSpace = totalDiskSpace - occupiedSpace
+
+        require(freeSpace < targetFreeSpace)
+
+        val spaceToClean = targetFreeSpace - freeSpace
+
+        return countDirectorySizes(root)
+            .filter { it >= spaceToClean }
+            .min()
+    }
+
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day07_test")
     check(part1(testInput) == 95437)
+    check(part2(testInput) == 24_933_642)
 
     val input = readInput("Day07")
     println(part1(input))
+    println(part2(input))
 }
