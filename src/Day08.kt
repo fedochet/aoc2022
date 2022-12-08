@@ -10,12 +10,8 @@ fun main() {
         val rows: Int = trees.size
         val columns: Int = trees.first().length
 
-        operator fun get(row: Int, column: Int): Int {
-            return trees[row][column].digitToInt()
-        }
-
         operator fun get(pos: Pos): Int {
-            return this[pos.row, pos.column]
+            return trees[pos.row][pos.column].digitToInt()
         }
 
         operator fun contains(pos: Pos): Boolean {
@@ -23,41 +19,74 @@ fun main() {
         }
     }
 
+    fun goIntoForest(forest: Forest, from: Pos, action: (Pos) -> Pos): Sequence<Pos> =
+        generateSequence(from, action).drop(1).takeWhile { it in forest }
+
+    fun seenFromDirection(forest: Forest, direction: Sequence<Pos>, pos: Pos) =
+        direction.all { forest[it] < forest[pos] }
+
     fun checkVisibility(forest: Forest, pos: Pos): Boolean {
-        val positionHeight = forest[pos]
+        val leftRange = goIntoForest(forest, pos, Pos::moveLeft)
+        val rightRange = goIntoForest(forest, pos, Pos::moveRight)
 
-        val leftRange = generateSequence(pos) { it.moveLeft() }
-        val rightRange = generateSequence(pos) { it.moveRight() }
-
-        val upRange = generateSequence(pos) { it.moveUp() }
-        val downRange = generateSequence(pos) { it.moveDown() }
+        val upRange = goIntoForest(forest, pos, Pos::moveUp)
+        val downRange = goIntoForest(forest, pos, Pos::moveDown)
 
         return listOf(leftRange, rightRange, upRange, downRange)
-            .map { direction -> direction.drop(1).takeWhile { it in forest } }
-            .any { direction ->
-                direction.all { forest[it] < positionHeight }
+            .any { direction -> seenFromDirection(forest, direction, pos) }
+    }
+
+    fun positionsFor(forest: Forest): Sequence<Pos> = sequence {
+        for (row in 0 until forest.rows) {
+            for (column in 0 until forest.columns) {
+                yield(Pos(row, column))
             }
+        }
     }
 
     fun part1(input: List<String>): Int {
         val forest = Forest(input)
 
-        var seen = 0
-        for (row in 0 until forest.rows) {
-            for (column in 0 until forest.columns) {
-                if (checkVisibility(forest, Pos(row, column))) {
-                    seen += 1
-                }
-            }
+        return positionsFor(forest).count { checkVisibility(forest, it) }
+    }
+
+    fun countVisibleTrees(forest: Forest, direction: Sequence<Pos>, viewPos: Pos): Int {
+        var count = 0
+        
+        for (pos in direction) {
+            count += 1
+
+            if (forest[pos] >= forest[viewPos]) break
         }
 
-        return seen
+        return count
+    }
+
+    fun ratePosition(forest: Forest, pos: Pos): Int {
+        val leftRange = goIntoForest(forest, pos, Pos::moveLeft)
+        val rightRange = goIntoForest(forest, pos, Pos::moveRight)
+
+        val upRange = goIntoForest(forest, pos, Pos::moveUp)
+        val downRange = goIntoForest(forest, pos, Pos::moveDown)
+
+        val numberOfTreesFromSides = listOf(leftRange, rightRange, upRange, downRange)
+            .map { direction -> countVisibleTrees(forest, direction, pos) }
+        
+        return numberOfTreesFromSides.fold(1, Int::times)
+    }
+
+    fun part2(input: List<String>): Int {
+        val forest = Forest(input)
+
+        return positionsFor(forest).maxOf { ratePosition(forest, it) }
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day08_test")
     check(part1(testInput) == 21)
+    check(part2(testInput) == 8)
 
     val input = readInput("Day08")
     println(part1(input))
+    println(part2(input))
 }
