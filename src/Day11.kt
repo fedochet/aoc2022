@@ -1,15 +1,15 @@
 fun main() {
     class Monkey(
-        startingItems: List<Int>,
-        private val operation: (Int) -> Int,
-        private val divisibleBy: Int,
+        startingItems: List<Long>,
+        private val operation: (Long) -> Long,
+        val divisibleBy: Long,
     ) {
-        private val queue: ArrayDeque<Int> = ArrayDeque(startingItems)
+        private val queue: ArrayDeque<Long> = ArrayDeque(startingItems)
 
         private lateinit var nextMonkeyTrue: Monkey
         private lateinit var nextMonkeyFalse: Monkey
 
-        var inspectedItems: Int = 0
+        var inspectedItems: Long = 0
             private set
 
         fun setupTargets(ifTrue: Monkey, ifFalse: Monkey) {
@@ -17,20 +17,26 @@ fun main() {
             nextMonkeyFalse = ifFalse
         }
 
+        private var userOp: ((Long) -> Long)? = null
+
+        fun addUserOperation(op: (Long) -> Long) {
+            userOp = op
+        }
+
         fun processItems() {
             while (queue.isNotEmpty()) {
                 val initialWorry = queue.removeFirst()
 
                 val nextWorry = operation(initialWorry)
-                val reducedWorry = nextWorry / 3
+                val userReducedWorry = userOp?.invoke(nextWorry) ?: nextWorry
 
-                val nextMonkey = if (reducedWorry % divisibleBy == 0) {
+                val nextMonkey = if (userReducedWorry % divisibleBy == 0L) {
                     nextMonkeyTrue
                 } else {
                     nextMonkeyFalse
                 }
 
-                nextMonkey.queue.addLast(reducedWorry)
+                nextMonkey.queue.addLast(userReducedWorry)
 
                 inspectedItems += 1
             }
@@ -43,23 +49,26 @@ fun main() {
         return removePrefix(prefix)
     }
 
-    fun parseOperation(operation: String): (Int) -> Int {
+    fun parseOperation(operation: String): (Long) -> Long {
         val rightHand = operation.removePrefixChecked("new = ")
 
         val (left, op, right) = rightHand.split(" ", limit = 3)
 
-        val intOp: (Int, Int) -> Int = when (op) {
-            "+" -> Int::plus
-            "*" -> Int::times
+        val longOp: (Long, Long) -> Long = when (op) {
+            "+" -> Long::plus
+            "*" -> Long::times
 
             else -> error("Unexpected op '$op'")
         }
 
-        val leftSupplier: (Int) -> Int = if (left == "old") ({ it }) else ({ left.toInt() })
-        val rightSupplier: (Int) -> Int = if (right == "old") ({ it }) else ({ right.toInt() })
+        fun toNumberSupplier(refOrNumber: String): (Long) -> Long =
+            if (refOrNumber == "old") ({ it }) else ({ refOrNumber.toLong() })
+
+        val leftSupplier: (Long) -> Long = toNumberSupplier(left)
+        val rightSupplier: (Long) -> Long = toNumberSupplier(right)
 
         return { oldValue ->
-            intOp(
+            longOp(
                 leftSupplier(oldValue),
                 rightSupplier(oldValue)
             )
@@ -78,9 +87,9 @@ fun main() {
 
             Triple(
                 Monkey(
-                    items.removePrefixChecked("Starting items: ").split(", ").map { it.toInt() },
+                    items.removePrefixChecked("Starting items: ").split(", ").map { it.toLong() },
                     parseOperation(operation.removePrefixChecked("Operation: ")),
-                    test.removePrefix("Test: divisible by ").toInt(),
+                    test.removePrefix("Test: divisible by ").toLong(),
                 ),
                 ifTrue.removePrefixChecked("If true: throw to monkey ").toInt(),
                 ifFalse.removePrefixChecked("If false: throw to monkey ").toInt()
@@ -96,8 +105,16 @@ fun main() {
         return monkeys
     }
 
-    fun part1(input: List<String>): Int {
+    fun evaluateMonkeyBusiness(monkeys: List<Monkey>): Long {
+        val processedItems = monkeys.map { it.inspectedItems }.sorted()
+
+        return processedItems.takeLast(2).reduce(Long::times)
+    }
+
+    fun part1(input: List<String>): Long {
         val monkeys = parseMonkeys(input)
+
+        monkeys.forEach { it.addUserOperation { oldValue -> oldValue / 3 } }
 
         repeat(20) {
             for (monkey in monkeys) {
@@ -105,17 +122,34 @@ fun main() {
             }
         }
 
-        return monkeys
-            .map { it.inspectedItems }
-            .sorted()
-            .takeLast(2)
-            .reduce(Int::times)
+        return evaluateMonkeyBusiness(monkeys)
+    }
+
+    fun findCommonDivider(monkeys: List<Monkey>): Long {
+        return monkeys.map { it.divisibleBy }.distinct().reduce(Long::times)
+    }
+
+    fun part2(input: List<String>): Long {
+        val monkeys = parseMonkeys(input)
+
+        val commonDivider = findCommonDivider(monkeys)
+        monkeys.forEach { it.addUserOperation { oldValue -> oldValue % commonDivider } }
+
+        repeat(10_000) {
+            for (monkey in monkeys) {
+                monkey.processItems()
+            }
+        }
+
+        return evaluateMonkeyBusiness(monkeys)
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day11_test")
-    check(part1(testInput) == 10605)
+    check(part1(testInput) == 10605L)
+    check(part2(testInput) == 2713310158)
 
     val input = readInput("Day11")
     println(part1(input))
+    println(part2(input))
 }
