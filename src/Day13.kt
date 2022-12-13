@@ -20,12 +20,14 @@ private sealed class Item : Comparable<Item> {
     private fun wrapToListIfNeeded(item: Item): ListItem =
         when (item) {
             is ListItem -> item
-            is IntItem -> ListItem(listOf(item))
+            is IntItem -> ListItem(item)
         }
 }
 
 private data class IntItem(val value: Int) : Item()
-private data class ListItem(val values: List<Item>) : Item()
+private data class ListItem(val values: List<Item>) : Item() {
+    constructor(vararg items: Item): this(items.toList())
+}
 
 private fun splitList(content: String): List<String> {
     if (content.isEmpty()) return emptyList()
@@ -89,10 +91,26 @@ fun main() {
         return indexesOfSorted.sumOf { it.index + 1 }
     }
 
+    fun part2(input: List<String>): Int {
+        val items = parseItems(input)
+
+        val separators = listOf(
+            ListItem(ListItem(IntItem(2))),
+            ListItem(ListItem(IntItem(6))),
+        )
+
+        val sorted = (items + separators).sorted()
+        val indexesOfSeparators = separators.map { sorted.indexOf(it) }
+
+        return indexesOfSeparators.map { it + 1}.reduce(Int::times)
+    }
+
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day13_test")
     check(part1(testInput) == 13)
+    check(part2(testInput) == 140)
 
     val input = readInput("Day13")
     println(part1(input))
+    println(part2(input))
 }
