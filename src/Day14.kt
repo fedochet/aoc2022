@@ -75,10 +75,49 @@ fun main() {
         return sandUnits
     }
 
+    fun part2(input: List<String>): Int {
+        val walls = input.map { parseWall(it) }
+
+        val setup = buildInitialSetup(walls).toMutableSet()
+
+        val lowestPoint = setup.maxOf { it.row }
+        val bottomLine = lowestPoint + 2
+
+        fun isFree(pos: Pos): Boolean {
+            return pos !in setup && pos.row < bottomLine
+        }
+
+        var sandUnits = 0
+
+        outer@while (true) {
+            var current = Pos(0, 500)
+
+            while (true) {
+                if (current in setup) {
+                    break@outer
+                }
+
+                val next = possibleMoves(current).firstOrNull { isFree(it) }
+                if (next != null) {
+                    current = next
+                } else {
+                    setup.add(current)
+                    sandUnits++
+
+                    break
+                }
+            }
+        }
+
+        return sandUnits
+    }
+
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day14_test")
     check(part1(testInput) == 24)
+    check(part2(testInput) == 93)
 
     val input = readInput("Day14")
     println(part1(input))
+    println(part2(input))
 }
