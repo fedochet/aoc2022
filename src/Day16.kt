@@ -7,7 +7,7 @@ fun main() {
         return ValueInfo(name, rate.toInt(), connectedTo.split(", "))
     }
 
-    fun computeDistances(valves: List<ValueInfo>, nameToIndex: Map<String, Int>): List<List<Int>> {
+    fun computeDistances(valves: List<ValueInfo>, nameToIndex: Map<String, Int>): Array<IntArray> {
         val distances = List(valves.size) { MutableList(valves.size) { Int.MAX_VALUE.toLong() } }
 
         for (i in valves.indices) {
@@ -34,33 +34,36 @@ fun main() {
             }
         }
 
-        return distances.map { row -> row.map { it.toInt() } }
+        return distances.map { row -> row.map { it.toInt() }.toIntArray() }.toTypedArray()
     }
 
     fun findOptimalPath(
-        from: String,
-        distances: List<List<Int>>,
-        nameToIndex: Map<String, Int>,
-        nameToRate: Map<String, Int>,
-        notVisited: Set<String>,
+        from: Int,
+        distances: Array<IntArray>,
+        nameToRate: IntArray,
+        toVisit: BooleanArray,
         remainingTime: Int
     ): Int {
         if (remainingTime <= 0) return 0
 
-        val currentImpact = nameToRate.getValue(from) * remainingTime
+        val currentImpact = nameToRate[from] * remainingTime
 
         var nextImpact = 0
-        for (to in notVisited) {
-            val wasted = distances[nameToIndex.getValue(from)][nameToIndex.getValue(to)] + 1 // time to open the valve
+        for (next in toVisit.indices) {
+            if (nameToRate[next] == 0 || !toVisit[next]) continue
+            toVisit[next] = false
+
+            val wasted = distances[from][next] + 1 // time to open the valve
 
             val impact = findOptimalPath(
-                to,
+                next,
                 distances,
-                nameToIndex,
                 nameToRate,
-                notVisited - to,
+                toVisit,
                 remainingTime - wasted
             )
+
+            toVisit[next] = true
 
             if (nextImpact < impact) {
                 nextImpact = impact
@@ -81,56 +84,59 @@ fun main() {
         val nameToIndex = valves.withIndex().associate { (idx, value) -> value.name to idx }
         val distances = computeDistances(valves, nameToIndex)
 
-        val start = "AA"
+        val startIdx = valves.indexOfFirst { it.name == "AA" }
 
         return findOptimalPath(
-            start,
+            startIdx,
             distances,
-            nameToIndex,
-            valves.associate { it.name to it.rate },
-            valves.filter { it.rate > 0 }.map { it.name }.toSet(),
+            valves.map { it.rate }.toIntArray(),
+            valves.map { true }.toBooleanArray(),
             30
         )
     }
 
     fun findOptimalPathWithElephant(
-        from: String,
-        distances: List<List<Int>>,
-        nameToIndex: Map<String, Int>,
-        nameToRate: Map<String, Int>,
-        notVisited: Set<String>,
+        from: Int,
+        startForElephant: Int,
+        distances: Array<IntArray>,
+        nameToRate: IntArray,
+        toVisit: BooleanArray,
         remainingTime: Int
     ): Int {
         if (remainingTime <= 0) return 0
 
-        val currentImpact = nameToRate.getValue(from) * remainingTime
+        val currentImpact = nameToRate[from] * remainingTime
 
         var nextImpact = 0
-        for (to in notVisited) {
-            val wasted = distances[nameToIndex.getValue(from)][nameToIndex.getValue(to)] + 1 // time to open the valve
+        for (next in toVisit.indices) {
+            if (nameToRate[next] == 0 || !toVisit[next]) continue
+            toVisit[next] = false
+
+            val wasted = distances[from][next] + 1 // time to open the valve
 
             val impact = findOptimalPathWithElephant(
-                to,
+                next,
+                startForElephant,
                 distances,
-                nameToIndex,
                 nameToRate,
-                notVisited - to,
+                toVisit,
                 remainingTime - wasted
             )
+
+            toVisit[next] = true
 
             if (nextImpact < impact) {
                 nextImpact = impact
             }
         }
 
-        val elephantPath = findOptimalPath("AA", distances, nameToIndex, nameToRate, notVisited, 26)
-        if (elephantPath > nextImpact) {
+        val elephantPath = findOptimalPath(startForElephant, distances, nameToRate, toVisit, 26)
+        if (nextImpact < elephantPath) {
             nextImpact = elephantPath
         }
 
         return currentImpact + nextImpact
     }
-
 
     fun part2(input: List<String>): Int {
         val valves = input.map { parseValve(it) }
@@ -143,14 +149,14 @@ fun main() {
         val nameToIndex = valves.withIndex().associate { (idx, value) -> value.name to idx }
         val distances = computeDistances(valves, nameToIndex)
 
-        val start = "AA"
+        val startIdx = valves.indexOfFirst { it.name == "AA" }
 
         return findOptimalPathWithElephant(
-            start,
+            startIdx,
+            startForElephant = startIdx,
             distances,
-            nameToIndex,
-            valves.associate { it.name to it.rate },
-            valves.filter { it.rate > 0 }.map { it.name }.toSet(),
+            valves.map { it.rate }.toIntArray(),
+            valves.map { true }.toBooleanArray(),
             26
         )
     }
